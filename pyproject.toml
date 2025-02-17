@@ -1,0 +1,9 @@
+[project]
+name = "aiassistantbackend"
+version = "0.1.0"
+description = "Backend for AI Assistant"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.0",
+    "flask-sqlalchemy>=3.1.1",
+]
