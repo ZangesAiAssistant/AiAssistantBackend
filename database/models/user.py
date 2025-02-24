@@ -22,5 +22,7 @@ class User(db.Model, UserMixin):
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     picture: Mapped[str] = mapped_column(String(300))
 
+    chats: Mapped["Chat"] = db.relationship("Chat", back_populates="user")
+
     def __repr__(self):
         return f"<User {self.username}[{self.email}]>"
