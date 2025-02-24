@@ -6,6 +6,7 @@ from authlib.integrations.flask_client import OAuth
 from flask import Flask, url_for, redirect, session, request, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
+from ai_integration import get_ai_response
 from database.core import alembic, db
 from database.models.chat import Chat
 from database.models.chat_message import ChatMessage
@@ -103,11 +104,17 @@ def post_chat_message():
     # get the first chat or create a new one
     chat = user.chats[0] if user.chats else Chat(user=user)
     db.session.add(chat)
-    db.session.commit()
+    db.session.commit() # TODO: Check if this is necessary
 
     # create a new chat message
-    chat_message = ChatMessage(chat=chat, message=message, sender="user")
-    db.session.add(chat_message)
+    chat_message_user = ChatMessage(chat=chat, message=message, sender="user")
+    db.session.add(chat_message_user)
+
+    # get a response from the AI and create a new chat message
+    chat_message_ai = ChatMessage(chat=chat, message=get_ai_response(message), sender="ai_assistant")
+    db.session.add(chat_message_ai)
+
+    # commit the messages to the database
     db.session.commit()
 
     return redirect(url_for("home"))
