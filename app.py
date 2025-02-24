@@ -111,3 +111,17 @@ def post_chat_message():
     db.session.commit()
 
     return redirect(url_for("home"))
+
+@app.route("/delete-chat-message", methods=["POST"])
+@login_required
+def delete_chat_message():
+    message_id = request.form["message_id"]
+    message = ChatMessage.query.get(message_id)
+    if message is None:
+        return redirect(url_for("home"))
+    if message.chat.user_id != current_user.id:
+        return redirect(url_for("home")) # TODO: Add error message
+    db.session.delete(message)
+    db.session.commit()
+
+    return redirect(url_for("home"))
