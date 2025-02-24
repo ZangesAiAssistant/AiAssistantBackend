@@ -2,15 +2,13 @@ import os
 import secrets
 
 import dotenv
-from flask import Flask, url_for, redirect, session
-from authlib.jose import jwt
 from authlib.integrations.flask_client import OAuth
+from flask import Flask, url_for, redirect, session, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
-from database.core import alembic, db, run_migrations
+from database.core import alembic, db
 from database.models.user import User
 from flask_config import apply_config
-
 
 dotenv.load_dotenv()
 
@@ -26,8 +24,6 @@ oauth.register(
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    # access_token_url="https://oauth2.googleapis.com/token",
-    # authorize_url="https://accounts.google.com/o/oauth2/auth",
     client_kwargs={"scope": "openid email profile"},
 )
 
@@ -47,7 +43,11 @@ def load_user(user_id):
 @app.route("/")
 def home():
     if current_user.is_authenticated:
-        return f"Hello, {current_user.name}! <a href='/logout'>Logout</a>"
+        return f"""Hello, {current_user.name}! <a href='/logout'>Logout</a>
+        <form action="/chat-message" method="post">
+            <input type="text" name="message" placeholder="Enter your message">
+            <button type="submit">Send</button>
+"""
     return "Welcome! <a href='/login'>Login</a>"
 
 @app.route("/login")
@@ -91,4 +91,14 @@ def authorize():
 @login_required
 def logout():
     logout_user()
+    return redirect(url_for("home"))
+
+@app.route("/chat-message", methods=["POST"])
+@login_required
+def chat_message():
+    # get the message from the request
+    message = request.form["message"]
+    # get the user from the current_user
+    user: User = current_user
+    print(f"{user.username}: {message}")
     return redirect(url_for("home"))
