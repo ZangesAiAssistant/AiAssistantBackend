@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/home.css">
+    <title>AI Assistant - Home</title>
+</head>
+<body>
+    <h1>Welcome {{ user.username }}! <a href={{ url_for('logout') }}>Logout</a></h1>
+    <h2>Chat</h2>
+    {% if messages|length == 0 %}
+        <p>No messages found</p>
+    {% else %}
+        <ul class="chat">
+            {% for message in messages %}
+                <li class="chat-message">{{ message.message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <footer>
+        <form action="{{ url_for("post_chat_message") }}" method="post">
+            <input type="text" name="message" placeholder="Type your message here">
+            <button type="submit">Send</button>
+        </form>
+    </footer>
+
+</body>
+</html>

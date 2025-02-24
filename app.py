@@ -3,10 +3,12 @@ import secrets
 
 import dotenv
 from authlib.integrations.flask_client import OAuth
-from flask import Flask, url_for, redirect, session, request
+from flask import Flask, url_for, redirect, session, request, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 from database.core import alembic, db
+from database.models.chat import Chat
+from database.models.chat_message import ChatMessage
 from database.models.user import User
 from flask_config import apply_config
 
@@ -43,12 +45,11 @@ def load_user(user_id):
 @app.route("/")
 def home():
     if current_user.is_authenticated:
-        return f"""Hello, {current_user.name}! <a href='/logout'>Logout</a>
-        <form action="/chat-message" method="post">
-            <input type="text" name="message" placeholder="Enter your message">
-            <button type="submit">Send</button>
-"""
-    return "Welcome! <a href='/login'>Login</a>"
+        messages = []
+        if current_user.chats is not None:
+            messages = current_user.chats[0].messages
+        return render_template("home_authenticated.html", user=current_user, messages=messages)
+    return render_template("home_unauthenticated.html")
 
 @app.route("/login")
 def login():
@@ -95,10 +96,18 @@ def logout():
 
 @app.route("/chat-message", methods=["POST"])
 @login_required
-def chat_message():
-    # get the message from the request
+def post_chat_message():
     message = request.form["message"]
-    # get the user from the current_user
     user: User = current_user
-    print(f"{user.username}: {message}")
+
+    # get the first chat or create a new one
+    chat = user.chats[0] if user.chats else Chat(user=user)
+    db.session.add(chat)
+    db.session.commit()
+
+    # create a new chat message
+    chat_message = ChatMessage(chat=chat, message=message, sender="user")
+    db.session.add(chat_message)
+    db.session.commit()
+
     return redirect(url_for("home"))

@@ -1,3 +1,5 @@
+from typing import List
+
 from flask_login import UserMixin
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -22,7 +24,7 @@ class User(db.Model, UserMixin):
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     picture: Mapped[str] = mapped_column(String(300))
 
-    chats: Mapped["Chat"] = db.relationship("Chat", back_populates="user")
+    chats: Mapped[List["Chat"]] = db.relationship("Chat", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.username}[{self.email}]>"

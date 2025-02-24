@@ -1,0 +1,24 @@
+.chat {
+    list-style: none;
+}
+
+.chat-message {
+    background-color: aqua;
+}
+
+footer {
+    form {
+        width: 100%;
+        display: flex;
+
+        input {
+            flex: 1;
+            padding: 10px;
+            margin-right: 8px;
+        }
+
+        button {
+            padding: 10px;
+        }
+    }
+}

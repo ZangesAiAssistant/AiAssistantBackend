@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy import String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,7 +24,7 @@ class Chat(db.Model):
     title: Mapped[str] = mapped_column(default="New Chat")
 
     user: Mapped["User"] = relationship("User", back_populates="chats") # TODO: ensure one-to-many relationship
-    messages: Mapped["ChatMessage"] = relationship("ChatMessage", back_populates="chat")
+    messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="chat")
 
     def __repr__(self):
         return f"<Chat {self.title} by {self.user.username}>"
