@@ -16,7 +16,7 @@
         <ul class="chat">
             {% for message in messages %}
                 <li class="chat-message">
-                    <div class="chat-message-card">
+                    <div class="chat-message-card chat-message-{{ message.sender }}">
                         <p class="chat-message-time">{{ message.send_time }}</p>
                         <p class="chat-message-text">{{ message.message }}</p>
                         <form action="{{ url_for("delete_chat_message") }}" method="post">

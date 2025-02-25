@@ -111,7 +111,7 @@ def post_chat_message():
     db.session.add(chat_message_user)
 
     # get a response from the AI and create a new chat message
-    chat_message_ai = ChatMessage(chat=chat, message=get_ai_response(message), sender="ai_assistant")
+    chat_message_ai = ChatMessage(chat=chat, message=get_ai_response(message), sender="ai-assistant")
     db.session.add(chat_message_ai)
 
     # commit the messages to the database

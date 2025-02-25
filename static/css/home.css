@@ -2,18 +2,29 @@
     list-style: none;
 }
 
+.chat-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .chat-message-card {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    border-radius: 16px;
     padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 10px;
+    margin: 8px;
+    width: 80%;
+}
 
-    .message {
-        flex: 1;
-    }
+.chat-message-user {
+    align-self: flex-end;
+    background-color: cadetblue;
+}
+
+.chat-message-ai-assistant {
+    align-self: flex-start;
+    background-color: darkseagreen;
 }
 
 footer {
