@@ -23,7 +23,7 @@ class Chat(db.Model):
     user_id: Mapped[str] = mapped_column(String(100), ForeignKey("user.id"), nullable=False)
     title: Mapped[str] = mapped_column(default="New Chat")
 
-    user: Mapped["User"] = relationship("User", back_populates="chats") # TODO: ensure one-to-many relationship
+    user: Mapped["User"] = relationship("User", back_populates="chats")
     messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="chat")
 
     def __repr__(self):
