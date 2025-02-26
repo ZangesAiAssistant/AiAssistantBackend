@@ -104,14 +104,19 @@ def post_chat_message():
     # get the first chat or create a new one
     chat = user.chats[0] if user.chats else Chat(user=user)
     db.session.add(chat)
-    db.session.commit() # TODO: Check if this is necessary
+    db.session.commit()
+
+    # get 6 most recent messages
+    statement = db.select(ChatMessage).where(ChatMessage.chat_id == chat.id).order_by(ChatMessage.send_time.desc()).limit(6)
+    recent_messages = db.session.execute(statement).scalars().all()
+    recent_messages_str = "\n".join([f'{message.sender}@{message.send_time}: {message.message}' for message in recent_messages])
 
     # create a new chat message
     chat_message_user = ChatMessage(chat=chat, message=message, sender="user")
     db.session.add(chat_message_user)
 
     # get a response from the AI and create a new chat message
-    chat_message_ai = ChatMessage(chat=chat, message=get_ai_response(message), sender="ai-assistant")
+    chat_message_ai = ChatMessage(chat=chat, message=get_ai_response(message, recent_messages_str), sender="ai-assistant")
     db.session.add(chat_message_ai)
 
     # commit the messages to the database
