@@ -28,13 +28,13 @@ agent = Agent(
 )
 
 
-def get_ai_response(user_prompt: str, recent_messages: str) -> str:
+async def get_ai_response(user_prompt: str, recent_messages: str) -> str:
     """ Get an AI response to a user prompt """
-    try:
-        _ = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    # try:
+    #     _ = asyncio.get_event_loop()
+    # except RuntimeError:
+    #     loop = asyncio.new_event_loop()
+    #     asyncio.set_event_loop(loop)
     prompt = (
         f'--- RECENT MESSAGES ---\n'
         f'{recent_messages}\n'
@@ -43,8 +43,8 @@ def get_ai_response(user_prompt: str, recent_messages: str) -> str:
         f'{user_prompt}\n'
         f'--- NEW MESSAGE END ---'
     )
-    ai_response = agent.run_sync(prompt).data
-    try:
-        loop.close()
-    finally:
-        return ai_response
+    ai_response = await agent.run(prompt)
+    # try:
+    #     loop.close()
+    # finally:
+    return ai_response.data
