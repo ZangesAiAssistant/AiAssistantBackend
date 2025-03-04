@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from sqlalchemy.exc import NoResultFound
 
 load_dotenv()
 # THIS NEEDS TO BE EXECUTED BEFORE ANY OTHER IMPORTS
@@ -43,15 +44,25 @@ oauth.register(
 
 @app.get('/')
 async def homepage(request: Request):
-    user = request.session.get('user')
-    if user:
-        data = json.dumps(user)
-        html = (
-            '<h1>Logged in</h1>'
-            f'<pre>{data}</pre>'
-            f'<a href="{request.url_for("logout")}">logout</a>'
-        )
-        return HTMLResponse(html)
+    current_session_user = request.session.get('user')
+    if current_session_user:
+        with Session(engine) as db_session:
+            statement = select(User).where(User.id == current_session_user['id'])
+            user = db_session.exec(statement).first()
+            chat_messages_html = '\n'.join([
+                f'<li>{chat_message.sender}: {chat_message.message}</li>\n'
+                for chat_message in user.chats[0].messages
+            ])
+            html = (
+                '<h1>Logged in</h1>'
+                f'<p>{user.username}</p>'
+                f'<a href="{request.url_for("logout")}">logout</a>'
+                '<h2>Chat</h2>'
+                '<ul>'
+                f'{chat_messages_html}'
+                '</ul>'
+            )
+            return HTMLResponse(html)
     return HTMLResponse(f'<a href="{request.url_for("login")}">login</a>')
 
 @app.get("/auth/login")
@@ -68,9 +79,9 @@ async def auth_callback(request: Request):
     user_data = token['userinfo']
     # check user in database
     # if not exists, create user
-    with Session(engine) as session:
+    with Session(engine) as db_session:
         statement = select(User).where(User.id == user_data['sub'])
-        user = session.exec(statement).first()
+        user = db_session.exec(statement).first()
         if not user:
             try:
                 user = User(
@@ -82,9 +93,9 @@ async def auth_callback(request: Request):
                 )
             except KeyError as error:
                 raise HTTPException(status_code=400, detail=f'KeyError: {error}')
-            session.add(user)
-            session.commit()
-            session.refresh(user)
+            db_session.add(user)
+            db_session.commit()
+            db_session.refresh(user)
     request.session['user'] = user.model_dump()
 
     return RedirectResponse(url=request.url_for('homepage'))
