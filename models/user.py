@@ -7,6 +7,8 @@ if TYPE_CHECKING:
 
 
 class User(SQLModel, table=True):
+    __tablename__ = "user"
+
     id: Optional[str] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, nullable=False)
     username: str = Field(unique=True, nullable=False)

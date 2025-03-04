@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
 
 class Chat(SQLModel, table=True):
+    __tablename__ = "chat"
+
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(default="New Chat")
 

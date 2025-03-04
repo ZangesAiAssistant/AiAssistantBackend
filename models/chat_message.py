@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
 
 class ChatMessage(SQLModel, table=True):
+    __tablename__ = "chat_message"
+
     id: Optional[int] = Field(default=None, primary_key=True)
     message: str = Field(nullable=False)
     sender: str = Field(nullable=False)
