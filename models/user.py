@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from chat import Chat
+    from .chat_message import ChatMessage
 
 
 class User(SQLModel, table=True):
@@ -15,4 +15,4 @@ class User(SQLModel, table=True):
     name: str = Field(nullable=False)
     picture: Optional[str] = Field(default=None)
 
-    chats: list["Chat"] = Relationship(back_populates="user")
+    messages: list["ChatMessage"] = Relationship(back_populates="user", cascade_delete=True)

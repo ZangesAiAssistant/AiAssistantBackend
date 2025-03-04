@@ -22,7 +22,6 @@ from .ai_integration import get_ai_response
 # MUST IMPORT ALL MODELS, OTHERWISE RELATIONSHIPS WILL NOT WORK # TODO: find a better way to do this
 from .models.incoming_chat_message import IncomingChatMessage
 from .models.user import User
-from .models.chat import Chat
 from .models.chat_message import ChatMessage
 
 
@@ -52,24 +51,25 @@ async def homepage(request: Request):
         with Session(engine) as db_session:
             statement = select(User).where(User.id == current_session_user['id'])
             user = db_session.exec(statement).first()
-            chat_messages_html = '\n'.join([
-                f'<li>{chat_message.sender}: {chat_message.message} <form action="/delete-chat-message" method="post"><input type="hidden" name="message_id" value="{chat_message.id}"><button type="submit">Delete</button></form></li>'
-                for chat_message in user.chats[0].messages
-            ])
-            html = (
-                '<h1>Logged in</h1>'
-                f'<p>{user.username}</p>'
-                f'<a href="{request.url_for("logout")}">logout</a>'
-                '<h2>Chat</h2>'
-                '<ul>'
-                f'{chat_messages_html}'
-                '</ul>'
-                f'<form action="{request.url_for("send_chat_message")}" method="post">'
-                '<input type="text" name="message" required>'
-                '<button type="submit">Send</button>'
-                '</form>'
-            )
-            return HTMLResponse(html)
+            if user:
+                chat_messages_html = '\n'.join([
+                    f'<li>{chat_message.sender}: {chat_message.message} <form action="/delete-chat-message" method="post"><input type="hidden" name="message_id" value="{chat_message.id}"><button type="submit">Delete</button></form></li>'
+                    for chat_message in user.messages
+                ])
+                html = (
+                    '<h1>Logged in</h1>'
+                    f'<p>{user.username}</p>'
+                    f'<a href="{request.url_for("logout")}">logout</a>'
+                    '<h2>Chat</h2>'
+                    '<ul>'
+                    f'{chat_messages_html}'
+                    '</ul>'
+                    f'<form action="{request.url_for("send_chat_message")}" method="post">'
+                    '<input type="text" name="message" required>'
+                    '<button type="submit">Send</button>'
+                    '</form>'
+                )
+                return HTMLResponse(html)
     return HTMLResponse(f'<a href="{request.url_for("login")}">login</a>')
 
 @app.post('/chat')
@@ -82,10 +82,9 @@ async def send_chat_message(request: Request, message: str = Form(...)):
     with Session(engine) as db_session:
         statement = select(User).where(User.id == current_session_user['id'])
         user = db_session.exec(statement).first()
-        chat = user.chats[0]
 
         # get the most recent messages
-        statement = select(ChatMessage).where(ChatMessage.chat_id == chat.id).order_by(ChatMessage.send_time.desc()).limit(5).where()
+        statement = select(ChatMessage).where(ChatMessage.user_id == user.id).order_by(ChatMessage.send_time.desc()).limit(5)
         recent_messages = db_session.exec(statement).all()
         recent_messages_str = '\n'.join([
             f'{message.sender}@{message.send_time}: {message.message}'
@@ -94,14 +93,14 @@ async def send_chat_message(request: Request, message: str = Form(...)):
         ai_response = await get_ai_response(message, recent_messages_str)
 
         chat_message_user = ChatMessage(
-            chat=chat,
+            user=user,
             message=message,
             sender='user'
         )
         db_session.add(chat_message_user)
 
         chat_message_ai = ChatMessage(
-            chat=chat,
+            user=user,
             message=ai_response,
             sender='ai-assistant'
         )

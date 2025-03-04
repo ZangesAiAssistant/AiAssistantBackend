@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from .chat import Chat
+    from .user import User
 
 
 class ChatMessage(SQLModel, table=True):
@@ -15,5 +15,5 @@ class ChatMessage(SQLModel, table=True):
     sender: str = Field(nullable=False)
     send_time: datetime = Field(default=datetime.now())
 
-    chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
-    chat: Optional["Chat"] = Relationship(back_populates="messages")
+    user_id: str = Field(nullable=False, foreign_key="user.id")
+    user: "User" = Relationship(back_populates="messages")
