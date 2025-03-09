@@ -4,6 +4,7 @@ from typing import Annotated
 import requests
 from dotenv import load_dotenv
 from fastapi.security import OAuth2AuthorizationCodeBearer
+from sqlalchemy import text
 from starlette.staticfiles import StaticFiles
 
 load_dotenv()
@@ -109,36 +110,43 @@ function logToken() {
 </html>
 """)
 
-@app.post('/chat')
-async def send_chat_message(request: Request, message: str = Form(...)):
-                            # incoming_chat_message: IncomingChatMessage):
 
-    current_session_user = request.session.get('user')
-    if not current_session_user:
-        raise HTTPException(status_code=401, detail='Unauthorized')
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    userinfo_response = requests.get(
+        "https://www.googleapis.com/oauth2/v1/userinfo",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    if userinfo_response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid token or user not found")
+    user_data = userinfo_response.json()
 
     with Session(engine) as db_session:
-        statement = select(User).where(User.id == current_session_user['id'])
+        statement = select(User).where(User.id == user_data['id'])
         user = db_session.exec(statement).first()
-
+        if user:
+            return user
+        raise HTTPException(status_code=401, detail='Invalid token or user not found')
+@app.post('/chat', response_model=list[ChatMessage])
+async def send_chat_message(incoming_chat_message: IncomingChatMessage, current_user: User = Depends(get_current_user)):
+    with Session(engine) as db_session:
         # get the most recent messages
-        statement = select(ChatMessage).where(ChatMessage.user_id == user.id).order_by(ChatMessage.send_time.desc()).limit(5)
+        statement = select(ChatMessage).where(ChatMessage.user_id == current_user.id).order_by(ChatMessage.send_time.desc()).limit(5)
         recent_messages = db_session.exec(statement).all()
         recent_messages_str = '\n'.join([
             f'{message.sender}@{message.send_time}: {message.message}'
             for message in recent_messages
         ])
-        ai_response = await get_ai_response(message, recent_messages_str)
+        ai_response = await get_ai_response(incoming_chat_message.message, recent_messages_str)
 
         chat_message_user = ChatMessage(
-            user=user,
-            message=message,
+            user=current_user,
+            message=incoming_chat_message.message,
             sender='user'
         )
         db_session.add(chat_message_user)
 
         chat_message_ai = ChatMessage(
-            user=user,
+            user=current_user,
             message=ai_response,
             sender='ai-assistant'
         )
@@ -146,7 +154,7 @@ async def send_chat_message(request: Request, message: str = Form(...)):
 
         db_session.commit()
 
-    return RedirectResponse(url=request.url_for('homepage'), status_code=303)
+        return current_user.messages
 
 
 @app.post('/delete-chat-message')
@@ -242,16 +250,3 @@ async def auth_callback(request: Request, code: str):
             "frontend_origin": os.getenv("FRONTEND_ORIGIN"),
         }
     )
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    with Session(engine) as db_session:
-        statement = select(User).where(User.google_token == token)
-        user = db_session.exec(statement).first()
-        if not user:
-            raise HTTPException(status_code=401, detail='Invalid token or user not found')
-        return user
-
-@app.get('/auth/logout')
-async def logout(request: Request):
-    request.session.pop('user', None)
-    return RedirectResponse(url=request.url_for('homepage'))
