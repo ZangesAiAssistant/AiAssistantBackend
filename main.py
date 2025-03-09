@@ -1,32 +1,26 @@
+from dotenv import load_dotenv
+load_dotenv()
+# THIS NEEDS TO BE EXECUTED BEFORE ANY OTHER IMPORTS
+
 import os
 from typing import Annotated
 
 import requests
-from dotenv import load_dotenv
 from fastapi.security import OAuth2AuthorizationCodeBearer
-from sqlalchemy import text
 from starlette.staticfiles import StaticFiles
-
-load_dotenv()
-# THIS NEEDS TO BE EXECUTED BEFORE ANY OTHER IMPORTS
-
-import json
-
-from starlette.config import Config
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse
 from contextlib import asynccontextmanager
 from sqlmodel import select, Session
-from fastapi import FastAPI, Depends, Request, HTTPException, Form, Response
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Depends, Request, HTTPException, Response
 from fastapi.templating import Jinja2Templates
-from authlib.integrations.starlette_client import OAuth, OAuthError
 from sqlalchemy.exc import NoResultFound
 
 from .database import create_tables, engine
 from .ai_integration import get_ai_response
 # MUST IMPORT ALL MODELS, OTHERWISE RELATIONSHIPS WILL NOT WORK # TODO: find a better way to do this
 from .models.incoming_chat_message import IncomingChatMessage
+from .models.select_chat_message import SelectChatMessage
 from .models.user import User
 from .models.chat_message import ChatMessage
 
@@ -158,23 +152,18 @@ async def send_chat_message(incoming_chat_message: IncomingChatMessage, current_
 
 
 @app.post('/delete-chat-message')
-async def delete_chat_message(request: Request, message_id: int = Form(...)):
-    current_session_user = request.session.get('user')
-    if not current_session_user:
-        raise HTTPException(status_code=401, detail='Unauthorized')
-
+async def delete_chat_message(select_chat_message: SelectChatMessage, current_user: User = Depends(get_current_user)):
     with Session(engine) as db_session:
-        statement = select(ChatMessage).where(ChatMessage.id == message_id)
+        statement = select(ChatMessage).where(ChatMessage.id == select_chat_message.message_id)
         try:
             chat_message = db_session.exec(statement).one()
         except NoResultFound:
             raise HTTPException(status_code=404, detail='Message not found')
-        if chat_message.chat.user_id != current_session_user['id']:
+        if chat_message.user_id != current_user.id:
             raise HTTPException(status_code=403, detail='Forbidden')
         db_session.delete(chat_message)
         db_session.commit()
-
-    return RedirectResponse(url=request.url_for('homepage'), status_code=303)
+        return {'status': 'success'}
 
 @app.get("/auth/login")
 async def login(response: Response):
