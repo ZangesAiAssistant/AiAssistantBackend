@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Authentication Successful</title>
+</head>
+<body>
+    <h1>Authentication Successful</h1>
+    <p>You can close this window now.</p>
+
+    <script>
+        const authToken = '{{ token }}';
+        const frontendOrigin = '{{ frontend_origin }}';
+
+        try {
+            // Send the token to the parent window
+            window.opener.postMessage(
+                {
+                    type: 'AUTH_SUCCESS',
+                    token: authToken
+                },
+                frontendOrigin
+            );
+
+            // Close the popup after sending the message
+            window.close();
+        } catch (error) {
+            window.opener.postMessage(
+                {
+                    type: 'AUTH_ERROR',
+                    error: 'Failed to parse authentication data'
+                },
+                frontendOrigin
+            );
+            console.error('Error parsing auth data:', error);
+        }
+    </script>
+</body>
+</html>

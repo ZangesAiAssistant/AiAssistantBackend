@@ -14,5 +14,8 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, nullable=False)
     name: str = Field(nullable=False)
     picture: Optional[str] = Field(default=None)
+    google_token: str = Field(nullable=False)
+    google_token_expires: Optional[int] = Field(default=None)
+    google_refresh_token: Optional[str] = Field(default=None)
 
     messages: list["ChatMessage"] = Relationship(back_populates="user", cascade_delete=True)
