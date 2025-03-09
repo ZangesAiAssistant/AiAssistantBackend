@@ -112,6 +112,7 @@ function logToken() {
 @app.post('/chat')
 async def send_chat_message(request: Request, message: str = Form(...)):
                             # incoming_chat_message: IncomingChatMessage):
+
     current_session_user = request.session.get('user')
     if not current_session_user:
         raise HTTPException(status_code=401, detail='Unauthorized')
@@ -193,7 +194,10 @@ async def auth_callback(request: Request, code: str):
         },
     )
     token_response.raise_for_status()
-    token = token_response.json().get("access_token")
+    token_info = token_response.json()
+    token = token_info.get("access_token")
+
+    print(token_info)
 
     userinfo_response = requests.get(
         "https://www.googleapis.com/oauth2/v1/userinfo",
@@ -215,7 +219,9 @@ async def auth_callback(request: Request, code: str):
                     username=user_data['email'].split('@')[0],
                     name=user_data['name'],
                     picture=user_data.get('picture'),
-                    google_token=token
+                    google_token=token,
+                    google_token_expires=token_info['expires_in'],
+                    google_refresh_token=token_info.get('refresh_token'),
                 )
             except KeyError as error:
                 raise HTTPException(status_code=400, detail=f'KeyError: {error}')
@@ -223,6 +229,8 @@ async def auth_callback(request: Request, code: str):
             db_session.commit()
         else:
             user.google_token = token
+            user.google_token_expires = token_info['expires_in']
+            user.google_refresh_token = token_info.get('refresh_token')
             db_session.commit()
         db_session.refresh(user)
 
@@ -236,17 +244,12 @@ async def auth_callback(request: Request, code: str):
     )
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    print('current_user')
-    userinfo_response = requests.get(
-        "https://www.googleapis.com/oauth2/v1/userinfo",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    if userinfo_response.status_code != 200:
-        print('userinfo_response.status_code:', userinfo_response.status_code)
-        raise HTTPException(status_code=401, detail="Invalid token or user not found")
-
-    userinfo = userinfo_response.json()
-    return User(email=userinfo.get("email"), token=token)
+    with Session(engine) as db_session:
+        statement = select(User).where(User.google_token == token)
+        user = db_session.exec(statement).first()
+        if not user:
+            raise HTTPException(status_code=401, detail='Invalid token or user not found')
+        return user
 
 @app.get('/auth/logout')
 async def logout(request: Request):
