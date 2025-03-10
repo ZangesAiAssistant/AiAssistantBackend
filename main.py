@@ -1,7 +1,4 @@
 from dotenv import load_dotenv
-
-from .calendar_integration import fetch_google_calendar_events
-
 load_dotenv()
 # THIS NEEDS TO BE EXECUTED BEFORE ANY OTHER IMPORTS
 
@@ -21,11 +18,13 @@ from sqlalchemy.exc import NoResultFound
 
 from .database import create_tables, engine
 from .ai_integration import get_ai_response
+from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 # MUST IMPORT ALL MODELS, OTHERWISE RELATIONSHIPS WILL NOT WORK # TODO: find a better way to do this
-from .models.incoming_chat_message import IncomingChatMessage
-from .models.select_chat_message import SelectChatMessage
 from .models.user import User
 from .models.chat_message import ChatMessage
+from .models.incoming_chat_message import IncomingChatMessage
+from .models.select_chat_message import SelectChatMessage
+from .models.event_creation_parameters import EventCreationParameters
 
 
 @asynccontextmanager
@@ -256,3 +255,16 @@ async def auth_callback(request: Request, code: str):
 async def get_events(token: Annotated[str, Depends(oauth2_scheme)]):
     events = fetch_google_calendar_events(token=token)
     return events
+
+@app.post("/create_event")
+async def create_event(token: Annotated[str, Depends(oauth2_scheme)], event_details: EventCreationParameters):
+    created_event = create_google_calendar_event(
+        token=token,
+        event_name=event_details.title,
+        start_time=event_details.start_time,
+        end_time=event_details.end_time,
+        description=event_details.description,
+        location=event_details.location,
+        recurrence=event_details.recurrence,
+    )
+    return created_event
