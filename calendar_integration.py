@@ -29,10 +29,12 @@ def fetch_google_calendar_events(token: str):
     for event in events:
         return_events.append({
             'id': event.get('id'),
-            'status': event.get('status'),
             'summary': event.get('summary'),
             'description': event.get('description'),
             'start': event.get('start'),
             'end': event.get('end'),
+            'attendees': event.get('attendees'),
+            'location': event.get('location'),
+            'recurrence': event.get('recurrence'),
         })
     return return_events
