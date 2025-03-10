@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from pydantic_ai import Agent, RunContext
 
-from .calendar_integration import fetch_google_calendar_events
+from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 
 @dataclass
 class MyDeps:
@@ -32,7 +32,8 @@ agent = Agent(
         '\n'
         'You can use the following tools:\n'
         '- get_current_time\n'
-        '- get_calendar_events(token: str)\n'
+        '- get_calendar_events\n'
+        '- create_calendar_event(event_name: str, start_time: datetime, end_time: datetime, recurrence: str = None, description: str = None, location: str = None)\n'
     ),
     deps_type=MyDeps
 )
@@ -63,3 +64,18 @@ async def get_calendar_events(context: RunContext[MyDeps]) -> list[dict]:
     """ Get the user's calendar events """
     token = context.deps.token
     return fetch_google_calendar_events(token=token)
+
+@agent.tool
+async def create_calendar_event(context: RunContext[MyDeps], event_name: str, start_time: datetime, end_time: datetime, recurrence: str = None, description: str = None, location: str = None) -> dict:
+    """ Create a new calendar event using the google calendar API """
+    token = context.deps.token
+    created_event = create_google_calendar_event(
+        token=token,
+        event_name=event_name,
+        start_time=start_time,
+        end_time=end_time,
+        recurrence=recurrence,
+        description=description,
+        location=location,
+    )
+    return created_event
