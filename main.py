@@ -129,7 +129,11 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
             return user
         raise HTTPException(status_code=401, detail='Invalid token or user not found')
 @app.post('/chat', response_model=list[ChatMessage])
-async def send_chat_message(incoming_chat_message: IncomingChatMessage, current_user: User = Depends(get_current_user)):
+async def send_chat_message(
+        incoming_chat_message: IncomingChatMessage,
+        token: Annotated[str, Depends(oauth2_scheme)],
+        current_user: User = Depends(get_current_user)
+):
     with Session(engine) as db_session:
         # get the most recent messages
         statement = select(ChatMessage).where(ChatMessage.user_id == current_user.id).order_by(ChatMessage.send_time.desc()).limit(5)
@@ -138,7 +142,7 @@ async def send_chat_message(incoming_chat_message: IncomingChatMessage, current_
             f'{message.sender}@{message.send_time}: {message.message}'
             for message in recent_messages
         ])
-        ai_response = await get_ai_response(incoming_chat_message.message, recent_messages_str)
+        ai_response = await get_ai_response(incoming_chat_message.message, recent_messages_str, token)
 
         chat_message_user = ChatMessage(
             user=current_user,

@@ -13,12 +13,6 @@ def fetch_google_calendar_events(token: str):
     )
     calendars_response.raise_for_status()
     calendars = calendars_response.json()['items']
-    for calendar in calendars:
-        print('Calendar:')
-        for key, value in calendar.items():
-            print(f'{key}: {value}')
-        print('=' * 20)
-        print('\n')
     calendar_ids = [calendar['id'] for calendar in calendars]
     events = []
     for calendar_id in calendar_ids:
