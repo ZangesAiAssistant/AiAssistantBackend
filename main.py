@@ -41,18 +41,19 @@ templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
 
+scopes = {
+    "openid": "Access to OpenID Connect authentication",
+    "email": "Access to user's email",
+    "profile": "Access to user's profile",
+    "https://www.googleapis.com/auth/calendar.readonly": "Read-only access to calendar metadata",
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly": "Read-only access to calendar list metadata",
+    "https://www.googleapis.com/auth/calendar.events.readonly": "Read-only access to calendar events",
+    "https://www.googleapis.com/auth/calendar.app.created": "Full access to a secondary calendar",
+}
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl='https://accounts.google.com/o/oauth2/auth',
     tokenUrl='https://accounts.google.com/o/oauth2/token',
-    scopes={
-        "openid": "Access to OpenID Connect authentication",
-        "email": "Access to user's email",
-        "profile": "Access to user's profile",
-        "https://www.googleapis.com/auth/calendar.readonly": "Read-only access to calendar metadata",
-        "https://www.googleapis.com/auth/calendar.calendarlist.readonly": "Read-only access to calendar list metadata",
-        "https://www.googleapis.com/auth/calendar.events.readonly": "Read-only access to calendar events",
-        "https://www.googleapis.com/auth/calendar.app.created": "Full access to a secondary calendar",
-    }
+    scopes=scopes
 )
 
 
@@ -179,7 +180,7 @@ async def login(response: Response):
         f"response_type=code&"
         f"client_id={os.getenv('GOOGLE_CLIENT_ID')}&"
         f"redirect_uri={os.getenv('GOOGLE_REDIRECT_URI')}&"
-        f"scope=openid%20email%20profile%20https://www.googleapis.com/auth/calendar.events.readonly%20https://www.googleapis.com/auth/calendar.app.created&"
+        f"scope={'%20'.join(scopes.keys())}&"
         f"access_type=offline"
     )
     response.status_code = 302
