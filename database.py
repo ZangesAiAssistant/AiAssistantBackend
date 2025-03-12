@@ -9,6 +9,3 @@ if os.getenv("DATABASE_URL") is None:
 database_url = os.getenv("DATABASE_URL")
 
 engine = create_engine(database_url, echo=True)
-
-def create_tables():
-    SQLModel.metadata.create_all(engine)

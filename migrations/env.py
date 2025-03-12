@@ -36,7 +36,6 @@ target_metadata = SQLModel.metadata
 
 if os.environ.get('DATABASE_URL') is None:
     raise Exception("DATABASE_URL is not set. Please set it in the .env file.")
-print(os.environ.get('DATABASE_URL'))
 config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
 
 

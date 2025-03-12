@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import logfire
 import requests
 
 
@@ -24,7 +25,7 @@ def fetch_google_calendar_events(token: str):
             events_response.raise_for_status()
             events.extend(events_response.json()['items'])
         except Exception as error:
-            print(f'Error fetching events for calendar {calendar_id}: {error}')
+            logfire.error(f'Error fetching events for calendar {calendar_id}: {error}')
     return_events = []
     for event in events:
         return_events.append({

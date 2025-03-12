@@ -15,8 +15,9 @@ from sqlmodel import select, Session
 from fastapi import FastAPI, Depends, Request, HTTPException, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import NoResultFound
+import logfire
 
-from .database import create_tables, engine
+from .database import engine
 from .ai_integration import get_ai_response
 from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 # MUST IMPORT ALL MODELS, OTHERWISE RELATIONSHIPS WILL NOT WORK # TODO: find a better way to do this
@@ -29,12 +30,12 @@ from .models.event_creation_parameters import EventCreationParameters
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("start")
-    create_tables()
+    logfire.info("FastAPI lifespan started")
     yield
-    print("end")
+    logfire.info("FastAPI lifespan ended")
 
-app = FastAPI()
+logfire.configure()
+app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -54,7 +55,6 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
     tokenUrl='https://accounts.google.com/o/oauth2/token',
     scopes=scopes
 )
-
 
 @app.get('/')
 async def homepage():
@@ -205,8 +205,6 @@ async def auth_callback(request: Request, code: str):
     token_info = token_response.json()
     token = token_info.get("access_token")
 
-    print(token_info)
-
     userinfo_response = requests.get(
         "https://www.googleapis.com/oauth2/v1/userinfo",
         headers={"Authorization": f"Bearer {token}"},
@@ -218,7 +216,6 @@ async def auth_callback(request: Request, code: str):
     with Session(engine) as db_session:
         statement = select(User).where(User.id == user_data['id'])
         user = db_session.exec(statement).first()
-        print(user)
         if not user:
             try:
                 user = User(
