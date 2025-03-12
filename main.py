@@ -34,8 +34,11 @@ async def lifespan(app: FastAPI):
     yield
     logfire.info("FastAPI lifespan ended")
 
-logfire.configure()
 app = FastAPI(lifespan=lifespan)
+
+logfire.configure()
+logfire.instrument_fastapi(app)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 

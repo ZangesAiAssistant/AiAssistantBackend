@@ -5,6 +5,8 @@ from pydantic_ai import Agent, RunContext
 
 from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 
+Agent.instrument_all()
+
 @dataclass
 class MyDeps:
     token: str
@@ -50,6 +52,7 @@ async def get_ai_response(user_prompt: str, recent_messages: str, token: str) ->
         f'--- NEW MESSAGE END ---\n'
 
     )
+
     ai_response = await agent.run(prompt, deps=MyDeps(token=token))
 
     return ai_response.data

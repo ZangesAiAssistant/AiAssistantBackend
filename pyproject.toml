@@ -8,8 +8,9 @@ dependencies = [
     "authlib>=1.5.1",
     "fastapi[standard]>=0.115.11",
     "itsdangerous>=2.2.0",
+    "logfire[fastapi]>=3.6.2",
     "psycopg2-binary>=2.9.10",
-    "pydantic-ai[logfire]>=0.0.25",
+    "pydantic-ai[logfire]>=0.0.36",
     "python-dotenv>=1.0.1",
     "sqlmodel>=0.0.23",
 ]
