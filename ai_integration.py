@@ -30,8 +30,6 @@ agent = Agent(
         'You should respond to the new message with a helpful and concise answer.\n'
         'in your response, you MUST not include the recent messages or the starting and ending tags.\n'
         '\n'
-        f'The current Date and Time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n'
-        '\n'
         'You can use the following tools:\n'
         '- get_current_time\n'
         '- get_calendar_events\n'
