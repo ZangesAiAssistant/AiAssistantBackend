@@ -2,7 +2,11 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from pydantic_ai import Agent, RunContext
+from sqlmodel import Session, select
 
+from .database import engine
+from .models.chat_message import ChatMessage
+from .models.user import User
 from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 
 Agent.instrument_all()
@@ -10,48 +14,21 @@ Agent.instrument_all()
 @dataclass
 class MyDeps:
     token: str
+    user: User
 
 agent = Agent(
     'openai:gpt-4o-mini',
     system_prompt=(
         'You are a helpful AI assistant to the user.\n'
         'Your answer should be concise and to the point.\n'
-        '\n'
-        'Every input message starts with the most recent messages Starting and ending with\n'
-        '--- RECENT MESSAGES ---\n'
-        '...\n'
-        '--- RECENT MESSAGES END ---\n'
-        '\n'
-        'And ends with the new message Starting and ending with\n'
-        '--- NEW MESSAGE ---\n'
-        '...\n'
-        '--- NEW MESSAGE END ---\n'
-        '\n'
-        'You should respond to the new message with a helpful and concise answer.\n'
-        'in your response, you MUST not include the recent messages or the starting and ending tags.\n'
-        '\n'
-        'You can use the following tools:\n'
-        '- get_current_time\n'
-        '- get_calendar_events\n'
-        '- create_calendar_event(event_name: str, start_time: datetime, end_time: datetime, recurrence: str = None, description: str = None, location: str = None)\n'
     ),
     deps_type=MyDeps
 )
 
 
-async def get_ai_response(user_prompt: str, recent_messages: str, token: str) -> str:
+async def get_ai_response(user_prompt: str, token: str, user: User) -> str:
     """ Get an AI response to a user prompt """
-    prompt = (
-        f'--- RECENT MESSAGES ---\n'
-        f'{recent_messages}\n'
-        f'--- RECENT MESSAGES END ---\n'
-        f'--- NEW MESSAGE ---\n'
-        f'{user_prompt}\n'
-        f'--- NEW MESSAGE END ---\n'
-
-    )
-
-    ai_response = await agent.run(prompt, deps=MyDeps(token=token))
+    ai_response = await agent.run(user_prompt, deps=MyDeps(token=token, user=user))
 
     return ai_response.data
 
@@ -80,3 +57,20 @@ async def create_calendar_event(context: RunContext[MyDeps], event_name: str, st
         location=location,
     )
     return created_event
+
+@agent.tool
+async def get_user_recent_messages(context: RunContext[MyDeps]) -> list[dict]:
+    """ Get the user's recent messages """
+    user = context.deps.user
+    with Session(engine) as db_session:
+        # get the most recent messages
+        statement = select(ChatMessage).where(ChatMessage.user_id == user.id).order_by(ChatMessage.send_time.desc()).limit(6)
+        recent_messages = db_session.exec(statement).all()
+        return [
+            {
+                'message': message.message,
+                'sender': message.sender,
+                'send_time': message.send_time
+            }
+            for message in recent_messages
+        ]

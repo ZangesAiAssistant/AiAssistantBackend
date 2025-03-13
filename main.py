@@ -136,16 +136,9 @@ async def send_chat_message(
         token: Annotated[str, Depends(oauth2_scheme)],
         current_user: User = Depends(get_current_user)
 ):
-    with Session(engine) as db_session:
-        # get the most recent messages
-        statement = select(ChatMessage).where(ChatMessage.user_id == current_user.id).order_by(ChatMessage.send_time.desc()).limit(5)
-        recent_messages = db_session.exec(statement).all()
-        recent_messages_str = '\n'.join([
-            f'{message.sender}@{message.send_time}: {message.message}'
-            for message in recent_messages
-        ])
-        ai_response = await get_ai_response(incoming_chat_message.message, recent_messages_str, token)
+    ai_response = await get_ai_response(incoming_chat_message.message, token, current_user)
 
+    with Session(engine) as db_session:
         chat_message_user = ChatMessage(
             user=current_user,
             message=incoming_chat_message.message,
