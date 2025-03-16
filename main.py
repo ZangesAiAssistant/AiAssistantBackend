@@ -136,7 +136,11 @@ async def send_chat_message(
         token: Annotated[str, Depends(oauth2_scheme)],
         current_user: User = Depends(get_current_user)
 ):
-    ai_response = await get_ai_response(incoming_chat_message.message, token, current_user)
+    ai_response = await get_ai_response(
+        incoming_chat_message.message,
+        token,
+        current_user
+    )
 
     with Session(engine) as db_session:
         chat_message_user = ChatMessage(

@@ -1,13 +1,13 @@
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 
 from pydantic_ai import Agent, RunContext
 from sqlmodel import Session, select
 
+from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 from .database import engine
 from .models.chat_message import ChatMessage
 from .models.user import User
-from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
 
 Agent.instrument_all()
 
