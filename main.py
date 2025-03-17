@@ -68,7 +68,30 @@ async def homepage():
     <title>Test</title>
 </head>
 <script>
+    
+function handleMessage(event) {
+    if (event.origin !== 'http://localhost:8000') {
+        console.log('Invalid origin', event.origin);
+        return;
+    }
+    
+    if (event.data?.type === 'AUTH_SUCCESS' && event.data?.token) {
+        localStorage.setItem('authToken', event.data.token);
+    } else if (event.data?.type === 'AUTH_ERROR') {
+        console.error(event.data.error);
+    } else {
+        return;
+    }
+    
+    window.removeEventListener('message', handleMessage);
+}
+
 function openLoginWindow() {
+    window.removeEventListener('message', handleMessage);
+    window.addEventListener('message', handleMessage);
+    
+    console.log('added event listener for message');
+    
     const width = 500;
     const height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -79,24 +102,6 @@ function openLoginWindow() {
         'Google Login',
         `width=${width},height=${height},left=${left},top=${top}`
     );
-    
-    const handleMessage = (event) => {
-        if (event.origin !== 'http://localhost:8000') {
-            return;
-        }
-        
-        if (event.data?.type === 'AUTH_SUCCESS' && event.data?.token) {
-            localStorage.setItem('authToken', event.data.token);
-        } else if (event.data?.type === 'AUTH_ERROR') {
-            console.error(event.data.error);
-        } else {
-            return;
-        }
-        
-        window.removeEventListener('message', handleMessage);
-    };
-    
-    window.addEventListener('message', handleMessage);
 }
 
 function logToken() {
