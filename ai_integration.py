@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.models.anthropic import AnthropicModelName
 from sqlmodel import Session, select
 
 from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
@@ -16,8 +17,9 @@ class MyDeps:
     token: str
     user: User
 
+# Models: openai:gpt-4o-mini
 agent = Agent(
-    'openai:gpt-4o-mini',
+    'anthropic:claude-3-haiku-20240307',
     system_prompt=(
         'You are a helpful AI assistant to the user.\n'
         'Your answer should be concise and to the point.\n'
