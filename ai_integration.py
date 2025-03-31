@@ -17,12 +17,13 @@ class MyDeps:
     token: str
     user: User
 
-# Models: openai:gpt-4o-mini
+# Models: openai:gpt-4o-mini anthropic:claude-3-haiku-20240307
 agent = Agent(
-    'anthropic:claude-3-haiku-20240307',
+    'google-gla:gemini-2.0-flash',
     system_prompt=(
         'You are a helpful AI assistant to the user.\n'
         'Your answer should be concise and to the point.\n'
+        'You have access to tools that may help you with your tasks.\n'
     ),
     deps_type=MyDeps
 )
@@ -41,13 +42,23 @@ def get_current_time() -> str:
 
 @agent.tool
 async def get_calendar_events(context: RunContext[MyDeps]) -> list[dict]:
-    """ Get the user's calendar events """
+    """ Get all calendar events from the user's calendars ending in the future with their details """
     token = context.deps.token
     return fetch_google_calendar_events(token=token)
 
 @agent.tool
 async def create_calendar_event(context: RunContext[MyDeps], event_name: str, start_time: datetime, end_time: datetime, recurrence: str = None, description: str = None, location: str = None) -> dict:
-    """ Create a new calendar event using the google calendar API """
+    """
+    Create a new calendar event using the google calendar API
+
+    Args:
+        event_name: The name of the event.
+        start_time: The start time of the event.
+        end_time: The end time of the event.
+        recurrence: The recurrence rule for the event (optional).
+        description: The description of the event (optional).
+        location: The location of the event (optional).
+    """
     token = context.deps.token
     created_event = create_google_calendar_event(
         token=token,
