@@ -41,6 +41,12 @@ def get_current_time() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 @agent.tool
+async def get_user_timezone(context: RunContext[MyDeps]) -> str:
+    """ Get the user's timezone """
+    user = context.deps.user
+    return "UTC"  # TODO: Placeholder, replace with actual timezone retrieval logic
+
+@agent.tool
 async def get_calendar_events(context: RunContext[MyDeps]) -> list[dict]:
     """ Get all calendar events from the user's calendars ending in the future with their details """
     token = context.deps.token
