@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.anthropic import AnthropicModelName
@@ -24,6 +24,9 @@ agent = Agent(
         'You are a helpful AI assistant to the user.\n'
         'Your answer should be concise and to the point.\n'
         'You have access to tools that may help you with your tasks.\n'
+        'You always have permission to use the tools.\n'
+        'Try to fulfill the users request to the best of your abilities.\n'
+        'Do not ask if you should proceed. Simply fulfill the request.'
     ),
     deps_type=MyDeps
 )
@@ -37,8 +40,18 @@ async def get_ai_response(user_prompt: str, token: str, user: User) -> str:
 
 @agent.tool_plain
 def get_current_time() -> str:
-    """ Get the current date and time """
+    """ Get the current date and time in the format YYYY-MM-DD HH:MM:SS """
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+@agent.tool_plain
+def get_offset_time(offset_hours: int) -> str:
+    """
+    Get the current date and time with an offset in hours
+
+    Args:
+        offset_hours: The number of hours to offset the current time.
+    """
+    return (datetime.now() + timedelta(hours=offset_hours)).strftime("%Y-%m-%d %H:%M:%S")
 
 @agent.tool
 async def get_user_timezone(context: RunContext[MyDeps]) -> str:
@@ -53,19 +66,23 @@ async def get_calendar_events(context: RunContext[MyDeps]) -> list[dict]:
     return fetch_google_calendar_events(token=token)
 
 @agent.tool
-async def create_calendar_event(context: RunContext[MyDeps], event_name: str, start_time: datetime, end_time: datetime, recurrence: str = None, description: str = None, location: str = None) -> dict:
+async def create_calendar_event(context: RunContext[MyDeps], event_name: str, start_time: datetime, end_time: datetime = None, recurrence: str = None, description: str = None, location: str = None) -> dict:
     """
     Create a new calendar event using the google calendar API
 
     Args:
         event_name: The name of the event.
         start_time: The start time of the event.
-        end_time: The end time of the event.
+        end_time: The end time of the event. (optional) [default: start_time + 1 hour]
         recurrence: The recurrence rule for the event (optional).
         description: The description of the event (optional).
         location: The location of the event (optional).
     """
     token = context.deps.token
+
+    if end_time is None:
+        end_time = start_time + timedelta(hours=1)
+        
     created_event = create_google_calendar_event(
         token=token,
         event_name=event_name,
