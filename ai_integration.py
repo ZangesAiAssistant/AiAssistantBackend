@@ -40,13 +40,13 @@ async def get_ai_response(user_prompt: str, token: str, user: User) -> str:
 
 @agent.tool_plain
 def get_current_time() -> str:
-    """ Get the current date and time in the format YYYY-MM-DD HH:MM:SS """
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    """ Get the current date and time in the format YYYY-MM-DD(day) HH:MM:SS """
+    return datetime.now().strftime("%Y-%m-%d(%A) %H:%M:%S")
 
 @agent.tool_plain
 def get_offset_time(offset_hours: int) -> str:
     """
-    Get the current date and time with an offset in hours
+    Get the current date and time, in the format YYYY-MM-DD HH:MM:SS, offset by a given number of hours.
 
     Args:
         offset_hours: The number of hours to offset the current time.
@@ -82,7 +82,7 @@ async def create_calendar_event(context: RunContext[MyDeps], event_name: str, st
 
     if end_time is None:
         end_time = start_time + timedelta(hours=1)
-        
+
     created_event = create_google_calendar_event(
         token=token,
         event_name=event_name,
