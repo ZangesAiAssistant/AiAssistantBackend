@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+import logfire
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.anthropic import AnthropicModelName
+from pydantic_ai.usage import UsageLimits
 from sqlmodel import Session, select
 
 from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
@@ -17,14 +19,13 @@ class MyDeps:
     token: str
     user: User
 
-# Models: openai:gpt-4o-mini anthropic:claude-3-haiku-20240307
+# Models: openai:gpt-4o-mini anthropic:claude-3-haiku-20240307 google-gla:gemini-2.0-flash
 agent = Agent(
-    'google-gla:gemini-2.0-flash',
+    'openai:gpt-4o-mini',
     system_prompt=(
         'You are a helpful AI assistant to the user.\n'
         'Your answer should be concise and to the point.\n'
         'You have access to tools that may help you with your tasks.\n'
-        'You always have permission to use the tools.\n'
         'Try to fulfill the users request to the best of your abilities.\n'
         'Do not ask if you should proceed. Simply fulfill the request.'
     ),
@@ -34,24 +35,48 @@ agent = Agent(
 
 async def get_ai_response(user_prompt: str, token: str, user: User) -> str:
     """ Get an AI response to a user prompt """
-    ai_response = await agent.run(user_prompt, deps=MyDeps(token=token, user=user))
+    ai_response = await agent.run(
+        user_prompt,
+        deps=MyDeps(token=token, user=user),
+        usage_limits=UsageLimits(request_tokens_limit=20000, total_tokens_limit=30000)
+    )
 
     return ai_response.data
 
-@agent.tool_plain
-def get_current_time() -> str:
-    """ Get the current date and time in the format YYYY-MM-DD(day) HH:MM:SS """
-    return datetime.now().strftime("%Y-%m-%d(%A) %H:%M:%S")
+# @agent.tool_plain
+# def get_current_time() -> str:
+#     """ Get the current date and time in the format YYYY-MM-DD(day) HH:MM:SS """
+#     time_string = datetime.now().strftime("%Y-%m-%d(%A) %H:%M:%S")
+#     logfire.info(time_string)
+#     return time_string
 
 @agent.tool_plain
-def get_offset_time(offset_hours: int) -> str:
+def get_offset_time(
+        offset_seconds: int = 0,
+        offset_minutes: int = 0,
+        offset_hours: int = 0,
+        offset_days: int = 0
+) -> str:
     """
-    Get the current date and time, in the format YYYY-MM-DD HH:MM:SS, offset by a given number of hours.
+    Get the current date and time, in the format YYYY-MM-DD(day) HH:MM:SS, with an optional offset
 
     Args:
-        offset_hours: The number of hours to offset the current time.
+        offset_seconds (int, optional): The number of seconds to offset the current time. Defaults to 0.
+        offset_minutes (int, optional): The number of minutes to offset the current time. Defaults to 0.
+        offset_hours (int, optional): The number of hours to offset the current time. Defaults to 0.
+        offset_days (int, optional): The number of days to offset the current time. Defaults to 0.
     """
-    return (datetime.now() + timedelta(hours=offset_hours)).strftime("%Y-%m-%d %H:%M:%S")
+    logfire.info(f"Parameter: {offset_seconds} seconds; {offset_minutes} minutes; {offset_hours} hours; {offset_days} days")
+    delta = timedelta(
+        seconds=offset_seconds,
+        minutes=offset_minutes,
+        hours=offset_hours,
+        days=offset_days
+    )
+    logfire.info(f"Time delta: {delta}")
+    time_string = (datetime.now() + delta).strftime("%Y-%m-%d(%A) %H:%M:%S")
+    logfire.info(f"Final date and time string: {time_string}")
+    return time_string
 
 @agent.tool
 async def get_user_timezone(context: RunContext[MyDeps]) -> str:
@@ -66,33 +91,72 @@ async def get_calendar_events(context: RunContext[MyDeps]) -> list[dict]:
     return fetch_google_calendar_events(token=token)
 
 @agent.tool
-async def create_calendar_event(context: RunContext[MyDeps], event_name: str, start_time: datetime, end_time: datetime = None, recurrence: str = None, description: str = None, location: str = None) -> dict:
+async def create_calendar_event(
+        context: RunContext[MyDeps],
+        event_name: str,
+        start_time: str,
+        end_time: str | None = None,
+        recurrence: str = None,
+        description: str = None,
+        location: str = None
+) -> dict | str:
     """
     Create a new calendar event using the google calendar API
 
     Args:
         event_name: The name of the event.
-        start_time: The start time of the event.
-        end_time: The end time of the event. (optional) [default: start_time + 1 hour]
+        start_time: The start time of the event(in iso8601 format).
+        end_time: The end time of the event(in iso8601 format). (optional) [default: start_time + 1 hour]
         recurrence: The recurrence rule for the event (optional).
         description: The description of the event (optional).
         location: The location of the event (optional).
+
+    Returns:
+        dict: The calendar event
+        OR
+        str: The error message
     """
-    token = context.deps.token
-
-    if end_time is None:
-        end_time = start_time + timedelta(hours=1)
-
-    created_event = create_google_calendar_event(
-        token=token,
+    logfire.info(
+        "Parameter:",
         event_name=event_name,
         start_time=start_time,
         end_time=end_time,
         recurrence=recurrence,
         description=description,
-        location=location,
+        location=location
     )
-    return created_event
+
+    try:
+        start_time = datetime.fromisoformat(start_time)
+    except ValueError:
+        return "start_time must be in iso8601 format"
+
+    if end_time:
+        try:
+            end_time = datetime.fromisoformat(end_time)
+        except ValueError:
+            return "end_time must be in iso8601 format or omitted"
+
+    token = context.deps.token
+
+    if end_time is None:
+        # If end_time is not provided, set it to 1 hour after start_time and cast to datetime
+        end_time = start_time + timedelta(hours=1)
+
+    try:
+        created_event = create_google_calendar_event(
+            token=token,
+            event_name=event_name,
+            start_time=start_time,
+            end_time=end_time,
+            recurrence=recurrence,
+            description=description,
+            location=location,
+        )
+        return created_event
+    except Exception as e:
+        logfire.error(f"Failed to create calendar event: {e}")
+        return "Failed to create calendar event"
 
 @agent.tool
 async def get_user_recent_messages(context: RunContext[MyDeps]) -> list[dict]:
