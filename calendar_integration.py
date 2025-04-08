@@ -43,7 +43,7 @@ def fetch_google_calendar_events(token: str):
     return return_events
 
 
-def create_google_calendar_event(token: str, event_name: str, start_time: datetime, end_time: datetime, recurrence: list = None, description: str = None, location: str = None):
+def create_google_calendar_event(token: str, event_name: str, start_time: str, end_time: str, recurrence: list = None, description: str = None, location: str = None):
     """ Create a Google Calendar event with the given parameters and return the created event data. """
     headers = {
         'Authorization': f'Bearer {token}',
@@ -79,10 +79,10 @@ def create_google_calendar_event(token: str, event_name: str, start_time: dateti
         event_data = {
             'summary': event_name,
             'start': {
-                'dateTime': start_time.isoformat() + 'Z',  # Adding 'Z' for UTC time
+                'dateTime': start_time
             },
             'end': {
-                'dateTime': end_time.isoformat() + 'Z',  # Adding 'Z' for UTC time
+                'dateTime': end_time
             },
         }
         if description:

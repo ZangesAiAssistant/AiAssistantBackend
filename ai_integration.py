@@ -25,9 +25,11 @@ agent = Agent(
     system_prompt=(
         'You are a helpful AI assistant to the user.\n'
         'Your answer should be concise and to the point.\n'
-        'You have access to tools that may help you with your tasks.\n'
         'Try to fulfill the users request to the best of your abilities.\n'
-        'Do not ask if you should proceed. Simply fulfill the request.'
+        'Do not ask if you should proceed. Simply fulfill the request.\n'
+        
+        'You have access to tools that may help you with your tasks.\n'
+        'Minimize the use of tools, while still fulfilling the request to the best of your abilities.\n'
     ),
     deps_type=MyDeps
 )
@@ -42,13 +44,6 @@ async def get_ai_response(user_prompt: str, token: str, user: User) -> str:
     )
 
     return ai_response.data
-
-# @agent.tool_plain
-# def get_current_time() -> str:
-#     """ Get the current date and time in the format YYYY-MM-DD(day) HH:MM:SS """
-#     time_string = datetime.now().strftime("%Y-%m-%d(%A) %H:%M:%S")
-#     logfire.info(time_string)
-#     return time_string
 
 @agent.tool_plain
 def get_offset_time(
@@ -66,7 +61,6 @@ def get_offset_time(
         offset_hours (int, optional): The number of hours to offset the current time. Defaults to 0.
         offset_days (int, optional): The number of days to offset the current time. Defaults to 0.
     """
-    logfire.info(f"Parameter: {offset_seconds} seconds; {offset_minutes} minutes; {offset_hours} hours; {offset_days} days")
     delta = timedelta(
         seconds=offset_seconds,
         minutes=offset_minutes,
@@ -125,23 +119,28 @@ async def create_calendar_event(
         description=description,
         location=location
     )
+    #
+    # try:
+    #     start_time = datetime.fromisoformat(start_time)
+    # except ValueError:
+    #     return "start_time must be in iso8601 format"
 
-    try:
-        start_time = datetime.fromisoformat(start_time)
-    except ValueError:
-        return "start_time must be in iso8601 format"
-
-    if end_time:
-        try:
-            end_time = datetime.fromisoformat(end_time)
-        except ValueError:
-            return "end_time must be in iso8601 format or omitted"
+    # if end_time:
+    #     try:
+    #         end_time = datetime.fromisoformat(end_time)
+    #     except ValueError:
+    #         return "end_time must be in iso8601 format or omitted"
 
     token = context.deps.token
 
     if end_time is None:
         # If end_time is not provided, set it to 1 hour after start_time and cast to datetime
-        end_time = start_time + timedelta(hours=1)
+        try:
+            start_time_datetime = datetime.fromisoformat(start_time)
+        except ValueError:
+            return "start_time must be in iso8601 format"
+        end_time_datetime = start_time_datetime + timedelta(hours=1)
+        end_time = end_time_datetime.isoformat()
 
     try:
         created_event = create_google_calendar_event(
