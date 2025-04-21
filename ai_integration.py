@@ -29,6 +29,7 @@ agent = Agent(
         'Do not ask if you should proceed. Simply fulfill the request.\n'
         
         'You have access to tools that may help you with your tasks.\n'
+        'If a request requires knowledge of the current date and time, use the get_offset_time tool to confirm the current date and time.\n'
         'Minimize the use of tools, while still fulfilling the request to the best of your abilities.\n'
     ),
     deps_type=MyDeps
@@ -79,10 +80,80 @@ async def get_user_timezone(context: RunContext[MyDeps]) -> str:
     return "UTC"  # TODO: Placeholder, replace with actual timezone retrieval logic
 
 @agent.tool
-async def get_calendar_events(context: RunContext[MyDeps]) -> list[dict]:
-    """ Get all calendar events from the user's calendars ending in the future with their details """
+async def get_calendar_events(context: RunContext[MyDeps], search_query: str = None, start_time: str = None, end_time: str = None) -> list[dict] | str:
+    """
+    Get all calendar events from the user's calendars matching the parameters
+    MUST INCLUDE AT LEAST ONE OF THE PARAMETERS
+
+    Args:
+        search_query (str, optional): The search query to filter events. Defaults to None.
+        start_time (str, optional): The maximum start time to filter events.
+            Only events starting before this time will be returned.
+            Must be in RFC3339 format with timezone.
+            Defaults to None.
+        end_time (str, optional): The minimum end time to filter events.
+            Only events ending after this time will be returned.
+            Must be in RFC3339 format with timezone.
+            Defaults to None.
+    """
+    start_time_datetime = None
+    end_time_datetime = None
+    if start_time:
+        try:
+            end_time_datetime = datetime.fromisoformat(start_time)
+        except ValueError:
+            return "start_time must be in iso8601 format"
+    if end_time:
+        try:
+            start_time_datetime = datetime.fromisoformat(end_time)
+        except ValueError:
+            return "end_time must be in iso8601 format"
+    if search_query is None and start_time is None and end_time is None:
+        return "At least one of search_query, start_time, or end_time must be provided"
     token = context.deps.token
-    return fetch_google_calendar_events(token=token)
+    # TODO: find better way to handle this
+    if search_query and start_time and end_time:
+        return fetch_google_calendar_events(
+            token=token,
+            query=search_query,
+            maximum_start_time=start_time_datetime,
+            minimum_end_time=end_time_datetime
+        )
+    if search_query and start_time:
+        return fetch_google_calendar_events(
+            token=token,
+            query=search_query,
+            maximum_start_time=start_time_datetime
+        )
+    if search_query and end_time:
+        return fetch_google_calendar_events(
+            token=token,
+            query=search_query,
+            minimum_end_time=end_time_datetime
+        )
+    if start_time and end_time:
+        return fetch_google_calendar_events(
+            token=token,
+            maximum_start_time=start_time_datetime,
+            minimum_end_time=end_time_datetime
+        )
+    if search_query:
+        return fetch_google_calendar_events(
+            token=token,
+            query=search_query
+        )
+    if start_time:
+        return fetch_google_calendar_events(
+            token=token,
+            maximum_start_time=start_time_datetime
+        )
+    if end_time:
+        return fetch_google_calendar_events(
+            token=token,
+            minimum_end_time=end_time_datetime
+        )
+    return "unexpected error"
+
 
 @agent.tool
 async def create_calendar_event(
