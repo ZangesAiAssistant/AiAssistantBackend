@@ -4,8 +4,19 @@ import logfire
 import requests
 
 
-def fetch_google_calendar_events(token: str):
-    """ Fetch all events from all calendars of the user with the given token. """
+def fetch_google_calendar_events(token: str, query: str = '', minimum_end_time: datetime = None, maximum_start_time: datetime = None):
+    """ Fetch all events from all calendars of the user with the given token and at least one of the given parameters. """
+    if minimum_end_time is None and maximum_start_time is None and not query:
+        raise ValueError("At least one of minimum_end_time, maximum_start_time, or query must be provided.")
+    parameter = ''
+    if query:
+        parameter += f'q={query}'
+    if minimum_end_time: # TODO: Fix timezone handling
+        parameter += f'&timeMin={minimum_end_time.isoformat()}Z'
+    if maximum_start_time:
+        parameter += f'&timeMax={maximum_start_time.isoformat()}Z'
+    if parameter:
+        parameter = '?' + parameter
     headers = {
         'Authorization': f'Bearer {token}',
     }
@@ -20,7 +31,7 @@ def fetch_google_calendar_events(token: str):
     for calendar_id in calendar_ids:
         try:
             events_response = requests.get(
-                f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events?timeMin={datetime.now().isoformat()}Z',
+                f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events{parameter}',
                 headers=headers,
             )
             events_response.raise_for_status()
@@ -41,6 +52,12 @@ def fetch_google_calendar_events(token: str):
             'recurrence': event.get('recurrence'),
         })
     return return_events
+
+
+# events_response = requests.get(
+#                 f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events?timeMin={datetime.now().isoformat()}Z',
+#                 headers=headers,
+#             )
 
 
 def create_google_calendar_event(token: str, event_name: str, start_time: str, end_time: str, recurrence: list = None, description: str = None, location: str = None):
