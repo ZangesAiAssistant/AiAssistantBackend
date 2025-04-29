@@ -52,6 +52,9 @@ scopes = {
     "https://www.googleapis.com/auth/calendar.calendarlist.readonly": "Read-only access to calendar list metadata",
     "https://www.googleapis.com/auth/calendar.events.readonly": "Read-only access to calendar events",
     "https://www.googleapis.com/auth/calendar.app.created": "Full access to a secondary calendar",
+    "https://www.googleapis.com/auth/gmail.readonly": "Read-only access to Gmail",
+    "https://www.googleapis.com/auth/gmail.compose": "Compose and send emails",
+    "https://www.googleapis.com/auth/gmail.labels": "Manage labels",
 }
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl='https://accounts.google.com/o/oauth2/auth',

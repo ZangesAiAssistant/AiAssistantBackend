@@ -8,6 +8,7 @@ from pydantic_ai.usage import UsageLimits
 from sqlmodel import Session, select
 
 from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
+from .email_integration import get_emails, draft_email, send_draft, get_drafts, get_email_details, delete_draft
 from .database import engine
 from .models.chat_message import ChatMessage
 from .models.user import User
@@ -31,6 +32,8 @@ agent = Agent(
         'You have access to tools that may help you with your tasks.\n'
         'If a request requires knowledge of the current date and time, use the get_offset_time tool to confirm the current date and time.\n'
         'Minimize the use of tools, while still fulfilling the request to the best of your abilities.\n'
+        
+        'You have access to tools that allow you to interact with the user\'s calendar and email.\n'
     ),
     deps_type=MyDeps
 )
@@ -244,3 +247,166 @@ async def get_user_recent_messages(context: RunContext[MyDeps]) -> list[dict]:
             }
             for message in recent_messages
         ]
+
+@agent.tool
+async def get_user_emails(context: RunContext[MyDeps], search_string: str) -> dict | str:
+    """
+    Get the user's emails using the Gmail API.
+
+    Args:
+        search_string (str): The search string to filter emails.
+
+    Returns:
+        dict: The list of emails from the Gmail API.
+        OR
+        str: The error message
+    """
+    token = context.deps.token
+    if search_string is None:
+        return "search_string must be provided"
+    try:
+        return get_emails(
+            token=token,
+            search_string=search_string
+        )
+    except Exception as e:
+        logfire.error(f"Failed to get emails: {e}")
+        return "Failed to get emails"
+
+@agent.tool
+async def get_user_email_details(context: RunContext[MyDeps], email_id: str) -> dict | str:
+    """
+    Get the details of an email using the Gmail API.
+
+    Args:
+        email_id (str): The ID of the email to retrieve.
+
+    Returns:
+        dict: The details of the email from the Gmail API.
+        OR
+        str: The error message
+    """
+    token = context.deps.token
+    if email_id is None:
+        return "email_id must be provided"
+    try:
+        return get_email_details(
+            token=token,
+            email_id=email_id
+        )
+    except Exception as e:
+        logfire.error(f"Failed to get email details: {e}")
+        return "Failed to get email details"
+
+@agent.tool
+async def draft_user_email(
+        context: RunContext[MyDeps],
+        receiver: str,
+        subject: str,
+        body: str
+) -> dict | str:
+    """
+    Draft an email using the Gmail API.
+
+    Args:
+        receiver (str): The email address of the recipient.
+        subject (str): The subject of the email.
+        body (str): The body of the email.
+
+    Returns:
+        dict: The draft email from the Gmail API.
+        OR
+        str: The error message
+    """
+    token = context.deps.token
+    if receiver is None or subject is None or body is None:
+        return "receiver, subject, and body must be provided"
+    try:
+        return draft_email(
+            token=token,
+            recipient=receiver,
+            subject=subject,
+            body=body
+        )
+    except Exception as e:
+        logfire.error(f"Failed to draft email: {e}")
+        return "Failed to draft email"
+
+@agent.tool
+async def send_user_draft(
+        context: RunContext[MyDeps],
+        draft_id: str
+) -> dict | str:
+    """
+    Send a draft email using the Gmail API.
+
+    Args:
+        draft_id (str): The ID of the draft to send.
+
+    Returns:
+        dict: The sent email from the Gmail API.
+        OR
+        str: The error message
+    """
+    token = context.deps.token
+    if draft_id is None:
+        return "draft_id must be provided"
+    try:
+        return send_draft(
+            token=token,
+            draft_id=draft_id
+        )
+    except Exception as e:
+        logfire.error(f"Failed to send draft email: {e}")
+        return "Failed to send draft email"
+
+@agent.tool
+async def get_user_drafts(context: RunContext[MyDeps]) -> dict | str:
+    """
+    Get the user's email drafts using the Gmail API.
+
+    Args:
+        None
+
+    Returns:
+        dict: The list of drafts from the Gmail API.
+        OR
+        str: The error message
+    """
+    token = context.deps.token
+    try:
+        return get_drafts(
+            token=token
+        )
+    except Exception as e:
+        logfire.error(f"Failed to get drafts: {e}")
+        return "Failed to get drafts"
+
+@agent.tool
+async def delete_user_draft(
+        context: RunContext[MyDeps],
+        draft_id: str
+) -> dict | str:
+    """
+    Delete a draft email using the Gmail API.
+
+    Args:
+        draft_id (str): The ID of the draft to delete.
+
+    Returns:
+        dict: The response from the Gmail API.
+        OR
+        str: The error message
+    """
+    token = context.deps.token
+    if draft_id is None:
+        return "draft_id must be provided"
+    try:
+        delete_draft(
+            token=token,
+            draft_id=draft_id
+        )
+        return "Draft email deleted successfully"
+    except Exception as e:
+        logfire.error(f"Failed to delete draft email: {e}")
+        return "Failed to delete draft email"
