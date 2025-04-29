@@ -8,13 +8,15 @@ def fetch_google_calendar_events(token: str, query: str = '', minimum_end_time: 
     """ Fetch all events from all calendars of the user with the given token and at least one of the given parameters. """
     if minimum_end_time is None and maximum_start_time is None and not query:
         raise ValueError("At least one of minimum_end_time, maximum_start_time, or query must be provided.")
+    if minimum_end_time.tzinfo is None or maximum_start_time.tzinfo is None:
+        raise ValueError("minimum_end_time and maximum_start_time must be timezone-aware datetime objects.")
     parameter = ''
     if query:
         parameter += f'q={query}'
-    if minimum_end_time: # TODO: Fix timezone handling
-        parameter += f'&timeMin={minimum_end_time.isoformat()}Z'
+    if minimum_end_time:
+        parameter += f'&timeMin={minimum_end_time.isoformat()}'
     if maximum_start_time:
-        parameter += f'&timeMax={maximum_start_time.isoformat()}Z'
+        parameter += f'&timeMax={maximum_start_time.isoformat()}'
     if parameter:
         parameter = '?' + parameter
     headers = {
