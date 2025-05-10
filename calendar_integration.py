@@ -4,15 +4,15 @@ import logfire
 import requests
 
 
-def fetch_google_calendar_events(token: str, query: str = '', minimum_end_time: datetime = None, maximum_start_time: datetime = None):
+def fetch_google_calendar_events(token: str, search_string: str = '', minimum_end_time: datetime = None, maximum_start_time: datetime = None):
     """ Fetch all events from all calendars of the user with the given token and at least one of the given parameters. """
-    if minimum_end_time is None and maximum_start_time is None and not query:
+    if minimum_end_time is None and maximum_start_time is None and not search_string:
         raise ValueError("At least one of minimum_end_time, maximum_start_time, or query must be provided.")
     if minimum_end_time.tzinfo is None or maximum_start_time.tzinfo is None:
         raise ValueError("minimum_end_time and maximum_start_time must be timezone-aware datetime objects.")
     parameter = ''
-    if query:
-        parameter += f'q={query}'
+    if search_string:
+        parameter += f'q={search_string}'
     if minimum_end_time:
         parameter += f'&timeMin={minimum_end_time.isoformat()}'
     if maximum_start_time:

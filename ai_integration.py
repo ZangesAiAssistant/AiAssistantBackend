@@ -118,20 +118,20 @@ async def get_calendar_events(context: RunContext[MyDeps], search_query: str = N
     if search_query and start_time and end_time:
         return fetch_google_calendar_events(
             token=token,
-            query=search_query,
+            search_string=search_query,
             maximum_start_time=start_time_datetime,
             minimum_end_time=end_time_datetime
         )
     if search_query and start_time:
         return fetch_google_calendar_events(
             token=token,
-            query=search_query,
+            search_string=search_query,
             maximum_start_time=start_time_datetime
         )
     if search_query and end_time:
         return fetch_google_calendar_events(
             token=token,
-            query=search_query,
+            search_string=search_query,
             minimum_end_time=end_time_datetime
         )
     if start_time and end_time:
@@ -143,7 +143,7 @@ async def get_calendar_events(context: RunContext[MyDeps], search_query: str = N
     if search_query:
         return fetch_google_calendar_events(
             token=token,
-            query=search_query
+            search_string=search_query
         )
     if start_time:
         return fetch_google_calendar_events(
