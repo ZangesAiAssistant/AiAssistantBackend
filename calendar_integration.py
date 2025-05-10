@@ -1,24 +1,44 @@
+import urllib.parse
 from datetime import datetime
 
 import logfire
 import requests
 
 
-def fetch_google_calendar_events(token: str, search_string: str = '', minimum_end_time: datetime = None, maximum_start_time: datetime = None):
-    """ Fetch all events from all calendars of the user with the given token and at least one of the given parameters. """
+def fetch_google_calendar_events(token: str, parameters: dict):
+    """
+        Fetch all events from all calendars of the user with the given token and at least one of the given parameters.
+
+        Parameters:
+            token: The user's Google API token.
+            parameters: A dictionary of parameters with the following keys:
+                search_string: A string to filter events by.
+                minimum_end_time: A datetime object representing the minimum end time of events to fetch.
+                maximum_start_time: A datetime object representing the maximum start time of events to fetch.
+    """
+    search_string = parameters.get('search_string', '')
+    minimum_end_time = parameters.get('minimum_end_time', None)
+    maximum_start_time = parameters.get('maximum_start_time', None)
+
     if minimum_end_time is None and maximum_start_time is None and not search_string:
         raise ValueError("At least one of minimum_end_time, maximum_start_time, or query must be provided.")
-    if minimum_end_time.tzinfo is None or maximum_start_time.tzinfo is None:
-        raise ValueError("minimum_end_time and maximum_start_time must be timezone-aware datetime objects.")
-    parameter = ''
+    if minimum_end_time is not None:
+        if type(minimum_end_time) is not datetime:
+            raise ValueError("minimum_end_time must be a datetime object.")
+        if minimum_end_time.tzinfo is None:
+            raise ValueError("minimum_end_time must be timezone-aware datetime object.")
+    if maximum_start_time is not None:
+        if type(maximum_start_time) is not datetime:
+            raise ValueError("maximum_start_time must be a datetime object.")
+        if maximum_start_time.tzinfo is None:
+            raise ValueError("maximum_start_time must be timezone-aware datetime object.")
+    params = {}
     if search_string:
-        parameter += f'q={search_string}'
+        params['q'] = search_string
     if minimum_end_time:
-        parameter += f'&timeMin={minimum_end_time.isoformat()}'
+        params['timeMin'] = minimum_end_time.isoformat()
     if maximum_start_time:
-        parameter += f'&timeMax={maximum_start_time.isoformat()}'
-    if parameter:
-        parameter = '?' + parameter
+        params['timeMax'] = maximum_start_time.isoformat()
     headers = {
         'Authorization': f'Bearer {token}',
     }
@@ -33,8 +53,9 @@ def fetch_google_calendar_events(token: str, search_string: str = '', minimum_en
     for calendar_id in calendar_ids:
         try:
             events_response = requests.get(
-                f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events{parameter}',
+                f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events',
                 headers=headers,
+                params=params,
             )
             events_response.raise_for_status()
             events.extend(events_response.json()['items'])

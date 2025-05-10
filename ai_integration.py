@@ -30,7 +30,8 @@ agent = Agent(
         'Do not ask if you should proceed. Simply fulfill the request.\n'
         
         'You have access to tools that may help you with your tasks.\n'
-        'If a request requires knowledge of the current date and time, use the get_offset_time tool to confirm the current date and time.\n'
+        'If a request requires knowledge of any date and time, use the get_offset_time tool to confirm the current date and time.\n'
+        'If you need to know the current time or date, use the get_offset_time tool.\n'
         'Minimize the use of tools, while still fulfilling the request to the best of your abilities.\n'
         
         'You have access to tools that allow you to interact with the user\'s calendar and email.\n'
@@ -87,6 +88,7 @@ async def get_calendar_events(context: RunContext[MyDeps], search_query: str = N
     """
     Get all calendar events from the user's calendars matching the parameters
     MUST INCLUDE AT LEAST ONE OF THE PARAMETERS
+    ALWAYS USE get_offset_time TO GET THE CURRENT TIME PRIOR TO CALLING THIS FUNCTION
 
     Args:
         search_query (str, optional): The search query to filter events. Defaults to None.
@@ -103,59 +105,31 @@ async def get_calendar_events(context: RunContext[MyDeps], search_query: str = N
     end_time_datetime = None
     if start_time:
         try:
-            end_time_datetime = datetime.fromisoformat(start_time)
+            start_time_datetime = datetime.fromisoformat(start_time)
         except ValueError:
             return "start_time must be in iso8601 format"
     if end_time:
         try:
-            start_time_datetime = datetime.fromisoformat(end_time)
+            end_time_datetime = datetime.fromisoformat(end_time)
         except ValueError:
             return "end_time must be in iso8601 format"
     if search_query is None and start_time is None and end_time is None:
         return "At least one of search_query, start_time, or end_time must be provided"
+
     token = context.deps.token
-    # TODO: find better way to handle this
-    if search_query and start_time and end_time:
-        return fetch_google_calendar_events(
-            token=token,
-            search_string=search_query,
-            maximum_start_time=start_time_datetime,
-            minimum_end_time=end_time_datetime
-        )
-    if search_query and start_time:
-        return fetch_google_calendar_events(
-            token=token,
-            search_string=search_query,
-            maximum_start_time=start_time_datetime
-        )
-    if search_query and end_time:
-        return fetch_google_calendar_events(
-            token=token,
-            search_string=search_query,
-            minimum_end_time=end_time_datetime
-        )
-    if start_time and end_time:
-        return fetch_google_calendar_events(
-            token=token,
-            maximum_start_time=start_time_datetime,
-            minimum_end_time=end_time_datetime
-        )
+    parameters = {}
     if search_query:
-        return fetch_google_calendar_events(
-            token=token,
-            search_string=search_query
-        )
-    if start_time:
-        return fetch_google_calendar_events(
-            token=token,
-            maximum_start_time=start_time_datetime
-        )
-    if end_time:
-        return fetch_google_calendar_events(
-            token=token,
-            minimum_end_time=end_time_datetime
-        )
-    return "unexpected error"
+        parameters['search_query'] = search_query
+    if start_time_datetime:
+        parameters['maximum_start_time'] = start_time_datetime
+    if end_time_datetime:
+        parameters['minimum_end_time'] = end_time_datetime
+
+    try:
+        logfire.info(f"Parameters: {parameters}")
+        return fetch_google_calendar_events(token, parameters)
+    except Exception as e:
+        return f"Failed to get calendar events: {e}"
 
 
 @agent.tool
