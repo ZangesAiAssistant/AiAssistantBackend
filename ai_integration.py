@@ -12,6 +12,7 @@ from .email_integration import get_emails, draft_email, send_draft, get_drafts, 
 from .database import engine
 from .models.chat_message import ChatMessage
 from .models.user import User
+from . import search
 
 Agent.instrument_all()
 
@@ -223,7 +224,7 @@ async def get_user_recent_messages(context: RunContext[MyDeps]) -> list[dict]:
         ]
 
 @agent.tool
-async def get_user_emails(context: RunContext[MyDeps], search_string: str) -> dict | str:
+async def get_user_emails(context: RunContext[MyDeps], search_string: str) -> list | str:
     """
     Get the user's emails using the Gmail API.
 
@@ -231,7 +232,7 @@ async def get_user_emails(context: RunContext[MyDeps], search_string: str) -> di
         search_string (str): The search string to filter emails.
 
     Returns:
-        dict: The list of emails from the Gmail API.
+        list: The list of emails from the Gmail API.
         OR
         str: The error message
     """
@@ -239,10 +240,19 @@ async def get_user_emails(context: RunContext[MyDeps], search_string: str) -> di
     if search_string is None:
         return "search_string must be provided"
     try:
-        return get_emails(
+        email_list = get_emails(
             token=token,
             search_string=search_string
         )
+        email_ids = [email['id'] for email in email_list['messages'] if 'id' in email]
+        emails = []
+        for email_id in email_ids:
+            email_details = get_email_details(token, email_id)
+            emails.append(email_details)
+
+        preprocessed_emails = search.preprocess_emails(emails)
+
+        return search.search(preprocessed_emails, search_string)
     except Exception as e:
         logfire.error(f"Failed to get emails: {e}")
         return "Failed to get emails"
@@ -264,10 +274,12 @@ async def get_user_email_details(context: RunContext[MyDeps], email_id: str) -> 
     if email_id is None:
         return "email_id must be provided"
     try:
-        return get_email_details(
+        details = get_email_details(
             token=token,
             email_id=email_id
         )
+        preprocessed_details = search.preprocess_emails([details])[0] # TODO: not clean
+        return preprocessed_details
     except Exception as e:
         logfire.error(f"Failed to get email details: {e}")
         return "Failed to get email details"
