@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+
 load_dotenv()
 # THIS NEEDS TO BE EXECUTED BEFORE ANY OTHER IMPORTS
 
@@ -9,6 +10,7 @@ import requests
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
 from contextlib import asynccontextmanager
 from sqlmodel import select, Session
@@ -41,6 +43,16 @@ logfire.instrument_fastapi(app)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+origins = [os.getenv("FRONTEND_ORIGIN")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
 
@@ -138,51 +150,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         if user:
             return user
         raise HTTPException(status_code=401, detail='Invalid token or user not found')
-@app.post('/chat', response_model=list[ChatMessage])
-async def send_chat_message(
-        incoming_chat_message: IncomingChatMessage,
-        token: Annotated[str, Depends(oauth2_scheme)],
-        current_user: User = Depends(get_current_user)
-):
-    ai_response = await get_ai_response(
-        incoming_chat_message.message,
-        token,
-        current_user
-    )
-
-    with Session(engine) as db_session:
-        chat_message_user = ChatMessage(
-            user=current_user,
-            message=incoming_chat_message.message,
-            sender='user'
-        )
-        db_session.add(chat_message_user)
-
-        chat_message_ai = ChatMessage(
-            user=current_user,
-            message=ai_response,
-            sender='ai-assistant'
-        )
-        db_session.add(chat_message_ai)
-
-        db_session.commit()
-
-        return current_user.messages
-
-
-@app.post('/delete-chat-message')
-async def delete_chat_message(select_chat_message: SelectChatMessage, current_user: User = Depends(get_current_user)):
-    with Session(engine) as db_session:
-        statement = select(ChatMessage).where(ChatMessage.id == select_chat_message.message_id)
-        try:
-            chat_message = db_session.exec(statement).one()
-        except NoResultFound:
-            raise HTTPException(status_code=404, detail='Message not found')
-        if chat_message.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail='Forbidden')
-        db_session.delete(chat_message)
-        db_session.commit()
-        return {'status': 'success'}
 
 @app.get("/auth/login")
 async def login(response: Response):
@@ -255,21 +222,68 @@ async def auth_callback(request: Request, code: str):
             "frontend_origin": os.getenv("FRONTEND_ORIGIN"),
         }
     )
-
-@app.get("/get_events")
-async def get_events(token: Annotated[str, Depends(oauth2_scheme)]):
-    events = fetch_google_calendar_events(token=token)
-    return events
-
-@app.post("/create_event")
-async def create_event(token: Annotated[str, Depends(oauth2_scheme)], event_details: EventCreationParameters):
-    created_event = create_google_calendar_event(
-        token=token,
-        event_name=event_details.title,
-        start_time=event_details.start_time,
-        end_time=event_details.end_time,
-        description=event_details.description,
-        location=event_details.location,
-        recurrence=event_details.recurrence,
+@app.post('/chat', response_model=list[ChatMessage])
+async def send_chat_message(
+        incoming_chat_message: IncomingChatMessage,
+        token: Annotated[str, Depends(oauth2_scheme)],
+        current_user: User = Depends(get_current_user)
+):
+    ai_response = await get_ai_response(
+        incoming_chat_message.message,
+        token,
+        current_user
     )
-    return created_event
+
+    with Session(engine) as db_session:
+        chat_message_user = ChatMessage(
+            user=current_user,
+            message=incoming_chat_message.message,
+            sender='user'
+        )
+        db_session.add(chat_message_user)
+
+        chat_message_ai = ChatMessage(
+            user=current_user,
+            message=ai_response,
+            sender='ai-assistant'
+        )
+        db_session.add(chat_message_ai)
+
+        db_session.commit()
+
+        return current_user.messages
+
+
+@app.post('/delete-chat-message')
+async def delete_chat_message(select_chat_message: SelectChatMessage, current_user: User = Depends(get_current_user)):
+    with Session(engine) as db_session:
+        statement = select(ChatMessage).where(ChatMessage.id == select_chat_message.message_id)
+        try:
+            chat_message = db_session.exec(statement).one()
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail='Message not found')
+        if chat_message.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail='Forbidden')
+        db_session.delete(chat_message)
+        db_session.commit()
+        return {'status': 'success'}
+
+
+@app.get('/chat')
+async def get_chat_messages(current_user_dependency: User = Depends(get_current_user)):
+    with Session(engine) as db_session:
+        user_in_session = db_session.get(User, current_user_dependency.id)
+        if not user_in_session:
+            raise HTTPException(status_code=404, detail="User not found in current session")
+        return user_in_session.messages
+
+
+@app.delete('/clear-chat')
+async def clear_chat(current_user_dependency: User = Depends(get_current_user)):
+    with Session(engine) as db_session:
+        user_in_session = db_session.get(User, current_user_dependency.id)
+        if not user_in_session:
+            raise HTTPException(status_code=404, detail="User not found in current session")
+        user_in_session.messages = []
+        db_session.commit()
+        return {'status': 'success'}
