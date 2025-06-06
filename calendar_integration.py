@@ -83,6 +83,28 @@ def fetch_google_calendar_events(token: str, parameters: dict):
 #             )
 
 
+def _get_managed_calendar(token: str):
+    """ Internal method to get the managed calendar """
+    headers = {
+        'Authorization': f'Bearer {token}',
+    }
+
+    # Get list of calendars
+    calendars_response = requests.get(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+        headers=headers,
+    )
+    calendars_response.raise_for_status()
+    calendars = calendars_response.json()['items']
+
+    # Find or create AI Managed Calendar
+    try:
+        ai_managed_calendar = next(filter(lambda calendar: calendar['summary'] == 'AI Managed Calendar', calendars))
+    except StopIteration:
+        ai_managed_calendar = None
+    return ai_managed_calendar
+
+
 def create_google_calendar_event(token: str, event_name: str, start_time: str, end_time: str, recurrence: list = None, description: str = None, location: str = None):
     """ Create a Google Calendar event with the given parameters and return the created event data. """
     headers = {
@@ -90,19 +112,7 @@ def create_google_calendar_event(token: str, event_name: str, start_time: str, e
     }
 
     try:
-        # Get list of calendars
-        calendars_response = requests.get(
-            'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-            headers=headers,
-        )
-        calendars_response.raise_for_status()
-        calendars = calendars_response.json()['items']
-
-        # Find or create AI Managed Calendar
-        try:
-            ai_managed_calendar = next(filter(lambda calendar: calendar['summary'] == 'AI Managed Calendar', calendars))
-        except StopIteration:
-            ai_managed_calendar = None
+        ai_managed_calendar = _get_managed_calendar(token)
 
         if ai_managed_calendar is None:
             calendar_create_response = requests.post(
@@ -147,3 +157,16 @@ def create_google_calendar_event(token: str, event_name: str, start_time: str, e
     except Exception as e:
         logfire.exception(f"Error creating calendar event: {e}")
         raise
+
+
+def delete_google_calendar_event(token: str, event_id: str):
+    """ Delete a Google Calendar event. """
+    headers = {
+        'Authorization': f'Bearer {token}'
+    }
+    delete_response = requests.delete(
+        f'https://www.googleapis.com/calendar/v3/calendars/{_get_managed_calendar(token)["id"]}/events/{event_id}',
+        headers=headers,
+    )
+    delete_response.raise_for_status()
+    return delete_response.json()

@@ -3,11 +3,10 @@ from datetime import datetime, timedelta
 
 import logfire
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.anthropic import AnthropicModelName
 from pydantic_ai.usage import UsageLimits
 from sqlmodel import Session, select
 
-from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event
+from .calendar_integration import fetch_google_calendar_events, create_google_calendar_event, delete_google_calendar_event
 from .email_integration import get_emails, draft_email, send_draft, get_drafts, get_email_details, delete_draft
 from .database import engine
 from .models.chat_message import ChatMessage
@@ -205,6 +204,18 @@ async def create_calendar_event(
     except Exception as e:
         logfire.error(f"Failed to create calendar event: {e}")
         return "Failed to create calendar event"
+
+
+# @agent.tool # TODO: fix
+async def delete_calendar_event(context: RunContext[MyDeps], event_id: str) -> str:
+    token = context.deps.token
+    try:
+        delete_google_calendar_event(token, event_id)
+        return f"Deleted calendar event: {event_id}"
+    except Exception as e:
+        logfire.error(f"Failed to delete calendar event: {e}")
+        return "Failed to delete calendar event"
+
 
 @agent.tool
 async def get_user_recent_messages(context: RunContext[MyDeps]) -> list[dict]:
