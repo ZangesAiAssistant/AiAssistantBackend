@@ -70,7 +70,7 @@ def get_offset_time(
         seconds=offset_seconds,
         minutes=offset_minutes,
         hours=offset_hours,
-        days=offset_days
+        days=offset_2days
     )
     logfire.info(f"Time delta: {delta}")
     time_string = (datetime.now() + delta).strftime("%Y-%m-%d(%A) %H:%M:%S")
@@ -81,7 +81,9 @@ def get_offset_time(
 async def get_user_timezone(context: RunContext[MyDeps]) -> str:
     """ Get the user's timezone """
     user = context.deps.user
-    return "UTC"  # TODO: Placeholder, replace with actual timezone retrieval logic
+    # as placeholder, we return a hardcoded berlin timezone
+    return "Europe/Berlin"
+    # TODO: Placeholder, replace with actual timezone retrieval logic
 
 @agent.tool
 async def get_calendar_events(context: RunContext[MyDeps], search_query: str = None, start_time: str = None, end_time: str = None) -> list[dict] | str:
