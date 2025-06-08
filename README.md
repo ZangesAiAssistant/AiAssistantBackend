@@ -24,6 +24,7 @@ With access to Google Calendar and GMail.
 
 ## Frontend Project
 [NextJS based Frontend](https://github.com/ZangesAiAssistant/WebFrontend)
+![screenshot](https://raw.githubusercontent.com/ZangesAiAssistant/WebFrontend/refs/heads/master/readme-assets/screenshot-dark.png)
 
 ## Installation
 ### Using UV(recommended)
