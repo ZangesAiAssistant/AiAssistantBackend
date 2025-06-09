@@ -70,7 +70,7 @@ def get_offset_time(
         seconds=offset_seconds,
         minutes=offset_minutes,
         hours=offset_hours,
-        days=offset_2days
+        days=offset_days
     )
     logfire.info(f"Time delta: {delta}")
     time_string = (datetime.now() + delta).strftime("%Y-%m-%d(%A) %H:%M:%S")
