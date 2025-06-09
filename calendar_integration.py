@@ -1,3 +1,4 @@
+import json
 import urllib.parse
 from datetime import datetime
 
@@ -20,61 +21,76 @@ def fetch_google_calendar_events(token: str, parameters: dict):
     minimum_end_time = parameters.get('minimum_end_time', None)
     maximum_start_time = parameters.get('maximum_start_time', None)
 
-    if minimum_end_time is None and maximum_start_time is None and not search_string:
-        raise ValueError("At least one of minimum_end_time, maximum_start_time, or query must be provided.")
-    if minimum_end_time is not None:
-        if type(minimum_end_time) is not datetime:
-            raise ValueError("minimum_end_time must be a datetime object.")
-        if minimum_end_time.tzinfo is None:
-            raise ValueError("minimum_end_time must be timezone-aware datetime object.")
-    if maximum_start_time is not None:
-        if type(maximum_start_time) is not datetime:
-            raise ValueError("maximum_start_time must be a datetime object.")
-        if maximum_start_time.tzinfo is None:
-            raise ValueError("maximum_start_time must be timezone-aware datetime object.")
-    params = {}
-    if search_string:
-        params['q'] = search_string
-    if minimum_end_time:
-        params['timeMin'] = minimum_end_time.isoformat()
-    if maximum_start_time:
-        params['timeMax'] = maximum_start_time.isoformat()
-    headers = {
-        'Authorization': f'Bearer {token}',
-    }
-    calendars_response = requests.get(
-        'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-        headers=headers,
-    )
-    calendars_response.raise_for_status()
-    calendars = calendars_response.json()['items']
-    calendar_ids = [calendar['id'] for calendar in calendars]
-    events = []
-    for calendar_id in calendar_ids:
-        try:
-            events_response = requests.get(
-                f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events',
-                headers=headers,
-                params=params,
-            )
-            events_response.raise_for_status()
-            events.extend(events_response.json()['items'])
-        except Exception as error:
-            # TODO: Handle specific exceptions, ?maybe wrap in logfire.span logfire.instrument?
-            logfire.exception(f"Failed to fetch events from calendar {calendar_id}: {error}")
-    return_events = []
-    for event in events:
-        return_events.append({
-            'id': event.get('id'),
-            'summary': event.get('summary'),
-            'description': event.get('description'),
-            'start': event.get('start'),
-            'end': event.get('end'),
-            'attendees': event.get('attendees'),
-            'location': event.get('location'),
-            'recurrence': event.get('recurrence'),
-        })
-    return return_events
+    with logfire.span("Fetching Google Calendar events", parameters={search_string, minimum_end_time, maximum_start_time}):
+        if minimum_end_time is None and maximum_start_time is None and not search_string:
+            raise ValueError("At least one of minimum_end_time, maximum_start_time, or query must be provided.")
+        if minimum_end_time is not None:
+            if type(minimum_end_time) is not datetime:
+                raise ValueError("minimum_end_time must be a datetime object.")
+            if minimum_end_time.tzinfo is None:
+                raise ValueError("minimum_end_time must be timezone-aware datetime object.")
+        if maximum_start_time is not None:
+            if type(maximum_start_time) is not datetime:
+                raise ValueError("maximum_start_time must be a datetime object.")
+            if maximum_start_time.tzinfo is None:
+                raise ValueError("maximum_start_time must be timezone-aware datetime object.")
+        params: dict[str, str | bool] = {'singleEvents': True}
+        if search_string:
+            params['q'] = search_string
+        if minimum_end_time:
+            params['timeMin'] = maximum_start_time.isoformat()
+        if maximum_start_time:
+            params['timeMax'] = minimum_end_time.isoformat()
+        headers = {
+            'Authorization': f'Bearer {token}',
+        }
+        calendars_response = requests.get(
+            'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+            headers=headers,
+        )
+        calendars_response.raise_for_status()
+        calendars = calendars_response.json()['items']
+
+        calendar_ids = [calendar['id'] for calendar in calendars]
+        calendar_ids.append("primary")  # Include primary calendar
+
+        events = []
+        with logfire.span("Fetching events from all calendars"):
+            for calendar_id in calendar_ids:
+                try:
+                    events_response = requests.get(
+                        f'https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events',
+                        headers=headers,
+                        params=params,
+                    )
+                    events_response.raise_for_status()
+                    logfire.info(f"Fetched events from calendar {calendar_id}")
+                    items = events_response.json()
+                    logfire.info(f"Got {items}")
+                    logfire.info(f"Got items data: {items}")
+                    events.extend(items.get('items', []))
+                except Exception as error:
+                    # TODO: Handle specific exceptions, ?maybe wrap in logfire.span logfire.instrument?
+                    logfire.exception(f"Failed to fetch events from calendar {calendar_id}: {error}")
+        logfire.info(f"Fetched {len(events)} events from all calendars.")
+
+        return_events = []
+        for event in events:
+            return_events.append({
+                'id': event.get('id'),
+                'summary': event.get('summary'),
+                'description': event.get('description'),
+                'start': event.get('start'),
+                'end': event.get('end'),
+                'attendees': event.get('attendees'),
+                'location': event.get('location'),
+                'recurrence': event.get('recurrence'),
+            })
+        with logfire.span(f"Returning {len(return_events)} events."):
+            for event in return_events:
+                logfire.info(f"Event ID: {event['id']}, Summary: {event['summary']}, Start: {event['start']}, End: {event['end']}")
+
+        return return_events
 
 
 # events_response = requests.get(
