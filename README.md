@@ -3,6 +3,8 @@ This is an AI Assistant based on the OpenAI API.
 It is a Backend for a personal AI assistant that can be used to manage tasks, answer questions, and provide information.
 With access to Google Calendar and GMail.
 
+![Api docs screenshot](/readme-assets/api-docs-screenshot.png)
+
 ## Features
 - **Calendar Management**: Integrates with Google Calendar to manage events.
 - **Email Management**: Integrates with Gmail to read emails, create, and send drafts.
