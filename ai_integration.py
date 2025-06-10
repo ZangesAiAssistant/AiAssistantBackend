@@ -60,6 +60,8 @@ def get_offset_time(
     """
     Get the current date and time, in the format YYYY-MM-DD(day) HH:MM:SS, with an optional offset
 
+    !Tomorrow means offset_days=1, not also offset_hours!
+
     Args:
         offset_seconds (int, optional): The number of seconds to offset the current time. Defaults to 0.
         offset_minutes (int, optional): The number of minutes to offset the current time. Defaults to 0.
@@ -146,6 +148,8 @@ async def create_calendar_event(
 ) -> dict | str:
     """
     Create a new calendar event using the google calendar API
+
+    !IMPORTANT: Always use get_offset_time to get the current time prior to calling this function!
 
     Args:
         event_name: The name of the event.
